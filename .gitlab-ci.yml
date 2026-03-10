@@ -1,9 +1,0 @@
-image: alpine
-
-pages:
-  script:
-    - mkdir -p public
-    - cp space-invaders-standalone.html public/index.html
-  artifacts:
-    paths:
-      - public
