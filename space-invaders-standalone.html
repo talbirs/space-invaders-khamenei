@@ -146,10 +146,28 @@ class Bullet{
   get hw(){return this.btype==='big'?BW*3/2:BW/2;}
   draw(){
     if(this.isEnemy){
-      const g=ctx.createLinearGradient(this.x,this.y,this.x,this.y+BH);
-      g.addColorStop(0,'#ff0');g.addColorStop(1,'#f00');
-      ctx.shadowBlur=10;ctx.shadowColor='#f80';
-      ctx.fillStyle=g;ctx.fillRect(this.x-BW/2,this.y,BW,BH);ctx.shadowBlur=0;
+      const mx=this.x,my=this.y+BH/2;
+      ctx.save();ctx.translate(mx,my);
+      // flame at top (exits from Khamenei downward, flame trails up)
+      const ft=Date.now()/200;
+      ctx.shadowBlur=8;ctx.shadowColor='#f60';
+      ctx.fillStyle='#f80';
+      ctx.beginPath();ctx.moveTo(-2,-BH/2-1);ctx.quadraticCurveTo(0,-BH/2-4-Math.abs(Math.sin(ft))*3,2,-BH/2-1);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#ff0';
+      ctx.beginPath();ctx.moveTo(-1,-BH/2-1);ctx.quadraticCurveTo(0,-BH/2-2-Math.abs(Math.sin(ft))*2,1,-BH/2-1);ctx.closePath();ctx.fill();
+      ctx.shadowBlur=0;
+      // body
+      ctx.fillStyle='#c0c8d4';ctx.strokeStyle='#333';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.roundRect(-2.5,-BH/2,5,BH-4,1.5);ctx.fill();ctx.stroke();
+      // nose (pointed bottom)
+      ctx.fillStyle='#8892a2';ctx.strokeStyle='#333';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.moveTo(-2.5,BH/2-4);ctx.lineTo(2.5,BH/2-4);ctx.lineTo(0,BH/2+1);ctx.closePath();ctx.fill();ctx.stroke();
+      // porthole
+      ctx.fillStyle='#0ee';ctx.strokeStyle='#fff';ctx.lineWidth=0.8;
+      ctx.shadowBlur=4;ctx.shadowColor='#0ff';
+      ctx.beginPath();ctx.arc(0,0,1.8,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.restore();
     } else if(this.btype==='laser'){
       ctx.shadowBlur=18;ctx.shadowColor='#f0f';
       ctx.fillStyle='#f0f';ctx.fillRect(this.x-2,this.y,4,BH*3);
