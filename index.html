@@ -268,10 +268,10 @@ const PU_TYPES=[
 const PU_DURATION=360;
 
 class PowerUp{
-  constructor(){
+  constructor(x){
     const t=PU_TYPES[Math.floor(Math.random()*PU_TYPES.length)];
     this.type=t.type;this.label=t.label;this.color=t.color;this.desc=t.desc;
-    this.x=50+Math.random()*(W-100);this.y=-20;this.speed=1.8;this.alive=true;
+    this.x=x!=null?x:50+Math.random()*(W-100);this.y=-20;this.speed=1.8;this.alive=true;
   }
   update(){this.y+=this.speed;if(this.y>H+20)this.alive=false;}
   draw(){
@@ -295,6 +295,37 @@ class PowerUp{
   bounds(){return{x:this.x-18,y:this.y-18,w:36,h:36};}
 }
 
+class LifeUp{
+  constructor(x){this.x=x;this.y=-20;this.speed=1.8;this.alive=true;}
+  update(){this.y+=this.speed;if(this.y>H+20)this.alive=false;}
+  draw(){
+    const t=Date.now()/400;
+    ctx.save();ctx.translate(this.x,this.y);
+    // glow
+    ctx.shadowBlur=18;ctx.shadowColor='#f44';
+    // heart shape
+    ctx.fillStyle='#f44';ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(0,9);
+    ctx.bezierCurveTo(-13,0,-18,-12,-9,-17);
+    ctx.bezierCurveTo(-4,-20,0,-15,0,-11);
+    ctx.bezierCurveTo(0,-15,4,-20,9,-17);
+    ctx.bezierCurveTo(18,-12,13,0,0,9);
+    ctx.closePath();ctx.fill();ctx.stroke();
+    // shine
+    ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,255,0.35)';
+    ctx.beginPath();ctx.ellipse(-3,-11,3,2,Math.PI*-0.4,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    // pulsing ring
+    const r=18+3*Math.sin(t);
+    ctx.save();ctx.globalAlpha=0.3+0.15*Math.sin(t);
+    ctx.strokeStyle='#f44';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(this.x,this.y,r,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+  bounds(){return{x:this.x-16,y:this.y-20,w:32,h:32};}
+}
+
 function hit(b,r){return b.x>=r.x&&b.x<=r.x+r.w&&b.y>=r.y&&b.y<=r.y+r.h;}
 function hitBullet(b,r){return b.x+b.hw>=r.x&&b.x-b.hw<=r.x+r.w&&b.y>=r.y&&b.y<=r.y+r.h;}
 
@@ -308,12 +339,12 @@ class Game{
     });
     window.addEventListener('keyup',e=>{this.keys[e.code]=false;});
   }
-  _start(){this.state='playing';this.score=0;this.lives=3;this.level=1;this.bullets=[];this.powerUps=[];this.puTimer=300;this.puSpawned=false;this.grid=new EnemyGrid(this.es,LEVELS[0].sc);this.player=new Player(this.ps);}
+  _start(){this.state='playing';this.score=0;this.lives=3;this.level=1;this.bullets=[];this.powerUps=[];this.lifeUps=[];this.puTimer=300;this.puSpawned=false;this.grid=new EnemyGrid(this.es,LEVELS[0].sc);this.player=new Player(this.ps);}
   _nextLevel(){
     this.level++;
     if(this.level>LEVELS.length){this.state='victory';return;}
     this.state='levelclear';this.levelClearTimer=200;
-    this.bullets=[];this.powerUps=[];this.puTimer=300;this.puSpawned=false;
+    this.bullets=[];this.powerUps=[];this.lifeUps=[];this.puTimer=300;this.puSpawned=false;
     this.grid=new EnemyGrid(this.es,LEVELS[this.level-1].sc);
     this.player.x=W/2;this.player.weapon='normal';this.player.weaponTimer=0;
   }
@@ -328,9 +359,20 @@ class Game{
     this.grid.update(this.bullets);
     this.bullets.forEach(b=>b.update());
     this.bullets=this.bullets.filter(b=>b.alive);
-    // power-up spawn — once per level, after 5 seconds
-    if(!this.puSpawned){this.puTimer--;if(this.puTimer<=0){this.powerUps.push(new PowerUp());this.puSpawned=true;}}
+    // power-up + life-up spawn — once per level, after 5 seconds
+    if(!this.puSpawned){
+      this.puTimer--;
+      if(this.puTimer<=0){
+        const px=50+Math.random()*(W-100);
+        let lx=50+Math.random()*(W-100);
+        if(Math.abs(lx-px)<120)lx=(lx+160)%( W-100)+50;
+        this.powerUps.push(new PowerUp(px));
+        this.lifeUps.push(new LifeUp(lx));
+        this.puSpawned=true;
+      }
+    }
     this.powerUps.forEach(p=>p.update());
+    this.lifeUps.forEach(l=>l.update());
     // power-up pickup
     const pb2=this.player.bounds();
     this.powerUps.forEach(p=>{
@@ -342,6 +384,16 @@ class Game{
       }
     });
     this.powerUps=this.powerUps.filter(p=>p.alive);
+    // life-up pickup
+    this.lifeUps.forEach(l=>{
+      if(!l.alive)return;
+      const r=l.bounds();
+      if(pb2.x<r.x+r.w&&pb2.x+pb2.w>r.x&&pb2.y<r.y+r.h&&pb2.y+pb2.h>r.y){
+        l.alive=false;
+        if(this.lives<3){this.lives++;spawnEx(l.x,l.y);}
+      }
+    });
+    this.lifeUps=this.lifeUps.filter(l=>l.alive);
     tickP();
     const lv=this.grid.alive;
     this.bullets.forEach(b=>{
@@ -368,6 +420,7 @@ class Game{
     this.grid.enemies.forEach(e=>e.draw());
     drawP();
     this.powerUps.forEach(p=>p.draw());
+    this.lifeUps.forEach(l=>l.draw());
     this.bullets.forEach(b=>b.draw());
     this.player.draw();
     this._hud();
